@@ -37,8 +37,8 @@
             <div class="max-w-4xl mx-auto flex items-center justify-between">
                 <p class="text-sm font-medium text-gray-600 dark:text-gray-300 truncate">
                     <span class="font-bold">Meeting Link:</span>
-                    <a id="meeting-link-anchor" href="#" target="_blank" class="text-indigo-600 dark:text-indigo-400 hover:underline">
-                        <!-- Link will be inserted here by JavaScript -->
+                    <a id="meeting-link-anchor" href="{{ meeting_link }}" target="_blank" class="text-indigo-600 dark:text-indigo-400 hover:underline">
+                        {{ meeting_link }}
                     </a>
                 </p>
                 <button id="copy-link-btn" class="flex items-center space-x-2 px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800 flex-shrink-0">
@@ -152,4 +152,3 @@
 </script>
 <script src="{{ url_for('static', path='/js/main.js') }}"></script>
 {% endblock %}
-

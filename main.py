@@ -145,6 +145,8 @@ async def join_meeting_post(
     db_session.add(participant)
     db_session.commit()
     db_session.refresh(participant)
+    
+    meeting_link = request.url_for('get_meeting_page', meeting_id=meeting_id)
 
     return templates.TemplateResponse(
         "meeting.html", {
@@ -152,7 +154,8 @@ async def join_meeting_post(
         "meeting_id": str(meeting_id),
         "participant_id": participant.id,
         "username": username,
-        "roll_number": roll_number
+        "roll_number": roll_number,
+        "meeting_link": meeting_link
     })
 
 # --- WebSocket Signaling Route ---
