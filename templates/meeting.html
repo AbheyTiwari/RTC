@@ -16,6 +16,22 @@
             </div>
         </div>
 
+        <!-- Meeting Info & Copy Link -->
+        <div class="bg-gray-100 dark:bg-gray-800 px-4 py-2 border-t border-b border-gray-200 dark:border-gray-700">
+            <div class="max-w-4xl mx-auto flex items-center justify-between">
+                <p class="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    Meeting Link: 
+                    <a id="meeting-link-anchor" href="#" target="_blank" class="text-indigo-600 dark:text-indigo-400 hover:underline">
+                        <!-- Link will be inserted here by JavaScript -->
+                    </a>
+                </p>
+                <button id="copy-link-btn" class="flex items-center space-x-2 px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    <span>Copy Link</span>
+                </button>
+            </div>
+        </div>
+
         <!-- Controls Bar -->
         <div class="bg-gray-100 dark:bg-gray-800 p-4 shadow-t-lg">
             <div class="max-w-4xl mx-auto flex items-center justify-center space-x-4">
@@ -52,6 +68,11 @@
              <!-- Participant list will be dynamically populated here -->
         </div>
     </aside>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-24 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-xl opacity-0 transform translate-y-10 transition-all duration-300 ease-in-out">
+        Link copied to clipboard!
+    </div>
 </div>
 {% endblock %}
 
@@ -64,3 +85,5 @@
 </script>
 <script src="{{ url_for('static', path='/js/main.js') }}"></script>
 {% endblock %}
+
+
