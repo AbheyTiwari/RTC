@@ -1,0 +1,51 @@
+/* Base styles for video grid layouts */
+.layout-videos-1 { grid-template-columns: repeat(1, 1fr); }
+.layout-videos-2 { grid-template-columns: repeat(2, 1fr); }
+.layout-videos-3, .layout-videos-4 { grid-template-columns: repeat(2, 1fr); }
+.layout-videos-5, .layout-videos-6 { grid-template-columns: repeat(3, 1fr); }
+.layout-videos-7, .layout-videos-8, .layout-videos-9 { grid-template-columns: repeat(3, 1fr); }
+.layout-videos-10, .layout-videos-11, .layout-videos-12 { grid-template-columns: repeat(4, 1fr); }
+
+/* Ensure videos fill their container gracefully */
+.video-container {
+    transition: all 0.3s ease-in-out;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* Control buttons styling */
+.control-btn {
+    @apply p-3 text-white rounded-full transition-all duration-200 ease-in-out transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-white;
+}
+
+/* Specific styling for active/inactive states */
+.control-btn.bg-red-600 {
+    background-color: #E53E3E;
+}
+
+.control-btn.sharing {
+    background-color: #3B82F6; /* Blue for sharing */
+    box-shadow: 0 0 15px #3B82F6;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .layout-videos-3, .layout-videos-4, .layout-videos-5, .layout-videos-6,
+    .layout-videos-7, .layout-videos-8, .layout-videos-9, .layout-videos-10,
+    .layout-videos-11, .layout-videos-12 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    /* For very small screens, stack videos */
+    @media (max-width: 480px) {
+        .layout-videos-2, .layout-videos-3, .layout-videos-4, .layout-videos-5, 
+        .layout-videos-6, .layout-videos-7, .layout-videos-8, .layout-videos-9,
+        .layout-videos-10, .layout-videos-11, .layout-videos-12 {
+            grid-template-columns: repeat(1, 1fr);
+        }
+    }
+}

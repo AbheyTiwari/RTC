@@ -1,49 +1,54 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Login - Join a Call</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #111827; color: #f9fafb; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;}
-        .container { max-width: 400px; width: 100%; margin: auto; background: #1f2937; padding: 2.5em; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; border: 1px solid #374151;}
-        h2 { font-size: 1.75em; color: #fff; margin-bottom: 1em; }
-        input[type="text"] { width: 100%; box-sizing: border-box; padding: 0.8em; margin-bottom: 1em; background: #374151; color: #fff; border: 1px solid #4b5563; border-radius: 8px; font-size: 1em; transition: border-color 0.3s, box-shadow 0.3s;}
-        input[type="text"]:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4); }
-        button { width: 100%; padding: 0.9em; background: #3b82f6; color: #fff; border: none; border-radius: 8px; font-size: 1.1em; font-weight: 600; cursor: pointer; transition: background-color 0.3s; }
-        button:hover { background: #2563eb; }
-        .message { margin-top: 1em; color: #34d399; }
-        .error { margin-top: 1em; color: #f87171; }
-        .hidden { display: none; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>Join a Call Room</h2>
-        <form id="joinForm">
-            <input type="text" id="name" name="name" placeholder="Enter your name" required />
-            <input type="text" id="roll" name="roll" placeholder="Enter roll no." required />
-            <input type="text" id="room" name="room" placeholder="Enter room ID" required />
-            <button type="submit">Join</button>
-        </form>
-        <div id="response" class="message hidden"></div>
-        <div id="error" class="error hidden"></div>
+{% extends "base.html" %}
+
+{% block title %}Create or Join Meeting{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-center min-h-screen">
+    <div class="w-full max-w-md p-8 space-y-8 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl">
+        <div class="text-center">
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Video Conference</h1>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">High-quality, secure video meetings for everyone.</p>
+        </div>
+        
+        <!-- Create Meeting Form -->
+        <div class="p-6 border-t border-gray-200 dark:border-gray-700">
+            <h2 class="text-xl font-semibold text-center mb-4">Start a New Meeting</h2>
+            <form action="/create-meeting" method="post" class="space-y-4">
+                <div>
+                    <label for="meeting_name" class="sr-only">Meeting Name (Optional)</label>
+                    <input id="meeting_name" name="meeting_name" type="text" autocomplete="off" class="relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" placeholder="Enter a meeting name (optional)">
+                </div>
+                <button type="submit" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800">
+                    Create Meeting
+                </button>
+            </form>
+        </div>
+
+        <!-- Join Meeting Form -->
+        <div class="p-6 border-t border-gray-200 dark:border-gray-700">
+             <h2 class="text-xl font-semibold text-center mb-4">Or Join an Existing One</h2>
+             <form id="join-form" class="space-y-4">
+                <div>
+                    <label for="meeting_link" class="sr-only">Meeting Link</label>
+                    <input id="meeting_link" name="meeting_link" type="text" required class="relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" placeholder="Enter meeting link">
+                </div>
+                <button type="submit" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800">
+                    Join
+                </button>
+            </form>
+        </div>
     </div>
-    <script>
-        document.getElementById('joinForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const name = document.getElementById('name').value.trim();
-            const roll = document.getElementById('roll').value.trim();
-            const room = document.getElementById('room').value.trim();
-            
-            if (name && room && roll) {
-                // Redirect the user to the call page
-                window.location.href = `/call/${encodeURIComponent(room)}/${encodeURIComponent(name)}/${encodeURIComponent(roll)}`;
-            } else {
-                const errorDiv = document.getElementById('error');
-                errorDiv.textContent = 'Please enter both your name and a room name.';
-                errorDiv.classList.remove('hidden');
-            }
-        });
-    </script>
-</body>
-</html>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('join-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const meetingLink = document.getElementById('meeting_link').value;
+        if (meetingLink) {
+            window.location.href = meetingLink;
+        }
+    });
+</script>
+{% endblock %}

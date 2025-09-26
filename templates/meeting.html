@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}In Meeting{% endblock %}
+
+{% block content %}
+<div class="flex h-screen bg-gray-200 dark:bg-gray-900 overflow-hidden">
+    <!-- Main Content: Video Grid -->
+    <main class="flex-1 flex flex-col">
+        <div id="video-grid" class="flex-1 p-4 grid gap-4">
+            <!-- Video elements will be dynamically inserted here -->
+            <div id="local-video-container" class="video-container relative rounded-lg overflow-hidden bg-gray-800 shadow-lg">
+                <video id="local-video" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                <div class="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-sm px-2 py-1 rounded-md">
+                    {{ username }} (You)
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Bar -->
+        <div class="bg-gray-100 dark:bg-gray-800 p-4 shadow-t-lg">
+            <div class="max-w-4xl mx-auto flex items-center justify-center space-x-4">
+                <!-- Mic Button -->
+                <button id="mic-btn" class="control-btn bg-gray-600 hover:bg-gray-700">
+                    <svg class="w-6 h-6" id="mic-on-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                    <svg class="w-6 h-6 hidden" id="mic-off-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m-2.122 2.122a1 1 0 01-1.414 0l-8.486-8.485a1 1 0 010-1.414l2.121-2.122m6.364 6.364a5 5 0 000-7.072m-2.122-2.122a1 1 0 00-1.414 0l-2.122 2.121M9 9l6-6m-6 6l6 6"></path></svg>
+                </button>
+                <!-- Camera Button -->
+                <button id="cam-btn" class="control-btn bg-gray-600 hover:bg-gray-700">
+                     <svg class="w-6 h-6" id="cam-on-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                     <svg class="w-6 h-6 hidden" id="cam-off-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.536a4 4 0 015.656 0l4 4a4 4 0 01-5.656 5.656l-1.102-1.101m0-5.656l-4-4m-1.32 9.32l5.656-5.656"></path></svg>
+                </button>
+                <!-- Screen Share Button -->
+                <button id="screen-btn" class="control-btn bg-gray-600 hover:bg-gray-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                </button>
+                <!-- Leave Button -->
+                <button id="leave-btn" class="control-btn bg-red-600 hover:bg-red-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                </button>
+                 <!-- Participants Toggle Button -->
+                 <button id="participants-btn" class="control-btn bg-gray-600 hover:bg-gray-700 md:hidden">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.653-.122-1.28-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.653.122-1.28.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Sidebar: Participants List -->
+    <aside id="participants-panel" class="w-64 bg-gray-100 dark:bg-gray-800 p-4 shadow-lg transition-transform transform translate-x-full md:translate-x-0 md:relative absolute right-0 top-0 h-full">
+        <h2 class="text-xl font-bold mb-4">Participants</h2>
+        <div id="participants-list" class="space-y-3">
+             <!-- Participant list will be dynamically populated here -->
+        </div>
+    </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Pass backend variables to JavaScript
+    const MEETING_ID = "{{ meeting_id }}";
+    const MY_USERNAME = "{{ username }}";
+    const MY_ROLL_NUMBER = "{{ roll_number }}";
+</script>
+<script src="{{ url_for('static', path='/js/main.js') }}"></script>
+{% endblock %}
