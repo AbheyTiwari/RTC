@@ -2,39 +2,55 @@
 
 {% block title %}In Meeting{% endblock %}
 
+{% block styles %}
+<style>
+    /* Custom styles for the video grid layout */
+    #video-grid {
+        /* Default to a single column */
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    }
+    .control-btn {
+        @apply p-3 rounded-full text-white transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800;
+    }
+</style>
+{% endblock %}
+
+
 {% block content %}
-<div class="flex h-screen bg-gray-200 dark:bg-gray-900 overflow-hidden">
+<div class="flex h-screen bg-gray-200 dark:bg-gray-900 text-gray-800 dark:text-gray-200 overflow-hidden">
     <!-- Main Content: Video Grid -->
     <main class="flex-1 flex flex-col">
+        <!-- Video Grid -->
         <div id="video-grid" class="flex-1 p-4 grid gap-4">
-            <!-- Video elements will be dynamically inserted here -->
+            <!-- Local Video -->
             <div id="local-video-container" class="video-container relative rounded-lg overflow-hidden bg-gray-800 shadow-lg">
                 <video id="local-video" autoplay playsinline muted class="w-full h-full object-cover"></video>
                 <div class="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-sm px-2 py-1 rounded-md">
                     {{ username }} (You)
                 </div>
             </div>
+            <!-- Remote video elements will be dynamically inserted here -->
         </div>
 
         <!-- Meeting Info & Copy Link -->
         <div class="bg-gray-100 dark:bg-gray-800 px-4 py-2 border-t border-b border-gray-200 dark:border-gray-700">
             <div class="max-w-4xl mx-auto flex items-center justify-between">
-                <p class="text-sm font-medium text-gray-600 dark:text-gray-300">
-                    Meeting Link: 
+                <p class="text-sm font-medium text-gray-600 dark:text-gray-300 truncate">
+                    <span class="font-bold">Meeting Link:</span>
                     <a id="meeting-link-anchor" href="#" target="_blank" class="text-indigo-600 dark:text-indigo-400 hover:underline">
                         <!-- Link will be inserted here by JavaScript -->
                     </a>
                 </p>
-                <button id="copy-link-btn" class="flex items-center space-x-2 px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800">
+                <button id="copy-link-btn" class="flex items-center space-x-2 px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800 flex-shrink-0">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                    <span>Copy Link</span>
+                    <span id="copy-link-text">Copy Link</span>
                 </button>
             </div>
         </div>
 
         <!-- Controls Bar -->
         <div class="bg-gray-100 dark:bg-gray-800 p-4 shadow-t-lg">
-            <div class="max-w-4xl mx-auto flex items-center justify-center space-x-4">
+            <div class="max-w-4xl mx-auto flex items-center justify-center space-x-2 sm:space-x-4">
                 <!-- Mic Button -->
                 <button id="mic-btn" class="control-btn bg-gray-600 hover:bg-gray-700">
                     <svg class="w-6 h-6" id="mic-on-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
@@ -53,8 +69,26 @@
                 <button id="leave-btn" class="control-btn bg-red-600 hover:bg-red-700">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                 </button>
+                <!-- QR Code Button -->
+                <button id="qr-btn" class="control-btn bg-gray-600 hover:bg-gray-700">
+                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 4H8V8H4V4Z" stroke-linejoin="round"></path>
+                        <path d="M4 16H8V20H4V16Z" stroke-linejoin="round"></path>
+                        <path d="M16 4H20V8H16V4Z" stroke-linejoin="round"></path>
+                        <path d="M10 4V8" stroke-linecap="round"></path>
+                        <path d="M14 4V8" stroke-linecap="round"></path>
+                        <path d="M10 16V20" stroke-linecap="round"></path>
+                        <path d="M12 10H14V14H12V10Z" stroke-linejoin="round"></path>
+                        <path d="M16 10V14" stroke-linecap="round"></path>
+                        <path d="M18 10V14" stroke-linecap="round"></path>
+                        <path d="M4 10H8" stroke-linecap="round"></path>
+                        <path d="M4 14H8" stroke-linecap="round"></path>
+                        <path d="M16 16H20" stroke-linecap="round"></path>
+                        <path d="M16 20H20" stroke-linecap="round"></path>
+                    </svg>
+                </button>
                  <!-- Participants Toggle Button -->
-                 <button id="participants-btn" class="control-btn bg-gray-600 hover:bg-gray-700 md:hidden">
+                <button id="participants-btn" class="control-btn bg-gray-600 hover:bg-gray-700">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.653-.122-1.28-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.653.122-1.28.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                 </button>
             </div>
@@ -62,28 +96,60 @@
     </main>
 
     <!-- Sidebar: Participants List -->
-    <aside id="participants-panel" class="w-64 bg-gray-100 dark:bg-gray-800 p-4 shadow-lg transition-transform transform translate-x-full md:translate-x-0 md:relative absolute right-0 top-0 h-full">
-        <h2 class="text-xl font-bold mb-4">Participants</h2>
-        <div id="participants-list" class="space-y-3">
+    <aside id="participants-panel" class="w-80 bg-gray-100 dark:bg-gray-800 p-4 shadow-lg transition-transform transform translate-x-full fixed right-0 top-0 h-full z-20 md:static md:translate-x-0 md:w-64">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold">Participants</h2>
+            <button id="close-participants-btn" class="md:hidden text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <div id="participants-list" class="space-y-3 overflow-y-auto h-full pb-16">
              <!-- Participant list will be dynamically populated here -->
+             <div class="flex items-center space-x-3 p-2 rounded-md">
+                <div class="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-sm">
+                    {{ username[0]|upper }}
+                </div>
+                <div>
+                    <p class="font-semibold text-sm">{{ username }} (You)</p>
+                    <p class="text-xs text-gray-500">{{ roll_number }}</p>
+                </div>
+             </div>
         </div>
     </aside>
 
+    <!-- QR Code Modal -->
+    <div id="qr-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+        <div id="qr-modal-content" class="bg-gray-100 dark:bg-gray-800 rounded-lg p-6 pt-4 shadow-2xl relative">
+            <button id="close-qr-modal-btn" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <h3 class="text-lg font-bold text-center mb-4">Scan to Join Meeting</h3>
+            <div id="qr-code-container" class="p-2 bg-white rounded-md flex justify-center items-center">
+                <!-- QR Code canvas will be rendered here by JavaScript -->
+            </div>
+            <p class="text-center text-xs mt-3 text-gray-600 dark:text-gray-400 truncate w-64" id="qr-link-text"></p>
+        </div>
+    </div>
+
+
     <!-- Toast Notification -->
-    <div id="toast" class="fixed bottom-24 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-xl opacity-0 transform translate-y-10 transition-all duration-300 ease-in-out">
+    <div id="toast" class="fixed bottom-24 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-xl opacity-0 transform translate-y-10 transition-all duration-300 ease-in-out z-30">
         Link copied to clipboard!
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 <script>
-    // Pass backend variables to JavaScript
-    const MEETING_ID = "{{ meeting_id }}";
-    const MY_USERNAME = "{{ username }}";
-    const MY_ROLL_NUMBER = "{{ roll_number }}";
+    // Pass backend variables to JavaScript in a structured way
+    window.appConfig = {
+        MEETING_ID: "{{ meeting_id }}",
+        MY_USERNAME: "{{ username }}",
+        MY_ROLL_NUMBER: "{{ roll_number }}",
+        MEETING_LINK: "{{ meeting_link }}"
+    };
 </script>
 <script src="{{ url_for('static', path='/js/main.js') }}"></script>
 {% endblock %}
-
 
