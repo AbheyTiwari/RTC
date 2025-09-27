@@ -15,7 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatForm = document.getElementById('chat-form');
     const chatInput = document.getElementById('chat-input');
 
-
     // --- State Management ---
     let localStream;
     let ws;
@@ -47,8 +46,21 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const startLocalMedia = async () => {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        localVideo.srcObject = localStream;
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: 640, height: 480 }, 
+                audio: { 
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true 
+                } 
+            });
+            localVideo.srcObject = localStream;
+            console.log('Local media started successfully');
+        } catch (error) {
+            console.error('Failed to get local media:', error);
+            throw error;
+        }
     };
 
     // --- WebSocket Signaling ---
@@ -68,6 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const message = JSON.parse(event.data);
         const { type, from_id, ...payload } = message;
 
+        console.log('Received message:', type, message);
+
         switch (type) {
             case 'connected':
                 ws.participantId = payload.participant_id;
@@ -83,8 +97,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 addParticipantToListUI(username, roll_number, participant_id, false);
                 remoteParticipants[participant_id] = { username, roll_number };
                 
-                console.log(`Creating offer for new participant: ${username}`);
-                createOffer(participant_id);
+                // Wait a bit before creating offer to ensure both sides are ready
+                setTimeout(() => {
+                    console.log(`Creating offer for new participant: ${username}`);
+                    createOffer(participant_id);
+                }, 100);
                 break;
 
             case 'offer':
@@ -98,6 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
 
             case 'ice-candidate':
+                console.log(`Received ICE candidate from ${from_id}`);
                 await handleIceCandidate(payload.candidate, from_id);
                 break;
 
@@ -118,58 +136,103 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const sendMessage = (message) => {
         if (ws.readyState === WebSocket.OPEN) {
+            console.log('Sending message:', message.type, message);
             ws.send(JSON.stringify(message));
+        } else {
+            console.error('WebSocket not ready, message not sent:', message);
         }
     };
 
     // --- WebRTC Core Logic ---
     const createPeerConnection = (participantId) => {
         if (peerConnections[participantId]) {
+            console.log(`Peer connection already exists for ${participantId}`);
             return peerConnections[participantId];
         }
 
+        console.log(`Creating new peer connection for ${participantId}`);
         const pc = new RTCPeerConnection(peerConfig);
 
         pc.onicecandidate = (event) => {
             if (event.candidate) {
+                console.log(`Sending ICE candidate to ${participantId}:`, event.candidate);
                 sendMessage({
                     type: 'ice-candidate',
                     candidate: event.candidate,
                     to: participantId,
                 });
+            } else {
+                console.log('All ICE candidates have been sent');
             }
         };
 
         pc.ontrack = (event) => {
-            addRemoteStream(participantId, event.streams[0]);
+            console.log(`Received track from ${participantId}:`, event.track.kind);
+            handleRemoteTrack(participantId, event.track);
         };
-        
-        localStream.getTracks().forEach(track => {
-            pc.addTrack(track, localStream);
-        });
+
+        pc.oniceconnectionstatechange = () => {
+            console.log(`ICE connection state for ${participantId}:`, pc.iceConnectionState);
+        };
+
+        pc.onconnectionstatechange = () => {
+            console.log(`Connection state for ${participantId}:`, pc.connectionState);
+        };
+
+        // Add local stream tracks to peer connection
+        if (localStream) {
+            localStream.getTracks().forEach(track => {
+                console.log(`Adding local track (${track.kind}) to peer connection for ${participantId}`);
+                pc.addTrack(track, localStream);
+            });
+        } else {
+            console.error('Local stream not available when creating peer connection');
+        }
 
         peerConnections[participantId] = pc;
         return pc;
     };
 
     const createOffer = async (participantId) => {
-        const pc = createPeerConnection(participantId);
         try {
-            const offer = await pc.createOffer();
+            const pc = createPeerConnection(participantId);
+            console.log(`Creating offer for ${participantId}`);
+            
+            const offer = await pc.createOffer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: true
+            });
+            
             await pc.setLocalDescription(offer);
-            sendMessage({ type: 'offer', offer: offer, to: participantId });
+            console.log(`Local description set for ${participantId}, sending offer`);
+            
+            sendMessage({ 
+                type: 'offer', 
+                offer: offer, 
+                to: participantId 
+            });
         } catch (error) {
             console.error(`Error creating offer for ${participantId}:`, error);
         }
     };
 
     const handleOffer = async (offer, participantId) => {
-        const pc = createPeerConnection(participantId);
-         try {
+        try {
+            const pc = createPeerConnection(participantId);
+            console.log(`Handling offer from ${participantId}`);
+            
             await pc.setRemoteDescription(new RTCSessionDescription(offer));
+            console.log(`Remote description set for ${participantId}`);
+            
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-            sendMessage({ type: 'answer', answer: answer, to: participantId });
+            console.log(`Created and set local description (answer) for ${participantId}`);
+            
+            sendMessage({ 
+                type: 'answer', 
+                answer: answer, 
+                to: participantId 
+            });
         } catch (error) {
             console.error(`Error handling offer from ${participantId}:`, error);
         }
@@ -179,29 +242,64 @@ document.addEventListener('DOMContentLoaded', () => {
         const pc = peerConnections[participantId];
         if (pc) {
             try {
+                console.log(`Handling answer from ${participantId}`);
                 await pc.setRemoteDescription(new RTCSessionDescription(answer));
+                console.log(`Remote description (answer) set for ${participantId}`);
             } catch (error) {
                 console.error(`Error handling answer from ${participantId}:`, error);
             }
+        } else {
+            console.error(`No peer connection found for ${participantId} when handling answer`);
         }
     };
 
     const handleIceCandidate = async (candidate, participantId) => {
         const pc = peerConnections[participantId];
-        if (pc && pc.remoteDescription && candidate) {
-             try {
-                await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        if (pc && candidate) {
+            try {
+                // Wait for remote description to be set before adding ICE candidates
+                if (pc.remoteDescription) {
+                    await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                    console.log(`Added ICE candidate from ${participantId}`);
+                } else {
+                    console.log(`Queueing ICE candidate from ${participantId} - remote description not set yet`);
+                    // Store candidate to add later when remote description is set
+                    if (!pc.pendingCandidates) {
+                        pc.pendingCandidates = [];
+                    }
+                    pc.pendingCandidates.push(candidate);
+                    
+                    // Check again after a short delay
+                    setTimeout(async () => {
+                        if (pc.remoteDescription && pc.pendingCandidates) {
+                            for (const pendingCandidate of pc.pendingCandidates) {
+                                try {
+                                    await pc.addIceCandidate(new RTCIceCandidate(pendingCandidate));
+                                    console.log(`Added queued ICE candidate from ${participantId}`);
+                                } catch (err) {
+                                    console.error(`Error adding queued ICE candidate:`, err);
+                                }
+                            }
+                            pc.pendingCandidates = [];
+                        }
+                    }, 100);
+                }
             } catch(error) {
                 console.error(`Error adding ICE candidate from ${participantId}:`, error);
             }
+        } else if (!pc) {
+            console.error(`No peer connection found for ${participantId} when handling ICE candidate`);
         }
     };
 
     const handleUserLeft = (participantId) => {
+        console.log(`Handling user left: ${participantId}`);
+        
         if (peerConnections[participantId]) {
             peerConnections[participantId].close();
             delete peerConnections[participantId];
         }
+        
         removeRemoteVideo(participantId);
         
         const leftParticipant = remoteParticipants[participantId];
@@ -353,32 +451,66 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     // --- Dynamic UI Updates ---
-    const addRemoteStream = (participantId, stream) => {
-        if (document.getElementById(`video-container-${participantId}`)) return;
+    const handleRemoteTrack = (participantId, track) => {
+        console.log(`Handling remote track from ${participantId}: ${track.kind}`);
+        
+        let videoContainer = document.getElementById(`video-container-${participantId}`);
+        if (!videoContainer) {
+            console.log(`Creating video container for ${participantId}`);
+            videoContainer = document.createElement('div');
+            videoContainer.id = `video-container-${participantId}`;
+            videoContainer.className = 'video-container relative rounded-lg overflow-hidden bg-gray-700 shadow-lg';
 
-        const container = document.createElement('div');
-        container.id = `video-container-${participantId}`;
-        container.className = 'video-container relative rounded-lg overflow-hidden bg-gray-700 shadow-lg';
+            const video = document.createElement('video');
+            video.autoplay = true;
+            video.playsInline = true;
+            video.muted = false;  // Don't mute remote video elements
+            video.className = 'w-full h-full object-cover';
+            video.srcObject = new MediaStream();
 
-        const video = document.createElement('video');
-        video.srcObject = stream;
-        video.autoplay = true;
-        video.playsInline = true;
-        video.className = 'w-full h-full object-cover';
+            // Separate audio element for better audio handling
+            const audio = document.createElement('audio');
+            audio.autoplay = true;
+            audio.controls = false;
+            audio.muted = false;
+            audio.srcObject = new MediaStream();
 
-        const nameTag = document.createElement('div');
-        nameTag.className = 'absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-sm px-2 py-1 rounded-md';
-        nameTag.textContent = remoteParticipants[participantId]?.username || 'Guest';
+            const nameTag = document.createElement('div');
+            nameTag.className = 'absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-sm px-2 py-1 rounded-md';
+            nameTag.textContent = remoteParticipants[participantId]?.username || 'Guest';
 
-        container.appendChild(video);
-        container.appendChild(nameTag);
-        videoGrid.appendChild(container);
-        updateGridLayout();
+            videoContainer.appendChild(video);
+            videoContainer.appendChild(audio);
+            videoContainer.appendChild(nameTag);
+            videoGrid.appendChild(videoContainer);
+            updateGridLayout();
+        }
+
+        // Add track to the appropriate media element
+        if (track.kind === 'video') {
+            const videoElement = videoContainer.querySelector('video');
+            videoElement.srcObject.addTrack(track);
+            videoElement.play().catch(e => console.log('Video play failed:', e));
+        } else if (track.kind === 'audio') {
+            const audioElement = videoContainer.querySelector('audio');
+            audioElement.srcObject.addTrack(track);
+            audioElement.play().catch(e => console.log('Audio play failed:', e));
+        }
     };
 
     const removeRemoteVideo = (participantId) => {
         const container = document.getElementById(`video-container-${participantId}`);
         if (container) {
+            const videoElement = container.querySelector('video');
+            const audioElement = container.querySelector('audio');
+            
+            if (videoElement && videoElement.srcObject) {
+                videoElement.srcObject.getTracks().forEach(track => track.stop());
+            }
+            if (audioElement && audioElement.srcObject) {
+                audioElement.srcObject.getTracks().forEach(track => track.stop());
+            }
+            
             container.remove();
             updateGridLayout();
         }
@@ -397,10 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!isYou) {
                 remoteParticipants[id] = p;
-                if (!peerConnections[id]) {
-                    console.log(`New participant detected: ${p.username}. Creating offer.`);
-                    createOffer(id);
-                }
+                // Don't automatically create offers here - wait for user-joined message
             }
         });
     };
@@ -465,7 +594,6 @@ document.addEventListener('DOMContentLoaded', () => {
         chatMessages.appendChild(wrapper);
         chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to bottom
     };
-
 
     // --- Start the application ---
     init();
