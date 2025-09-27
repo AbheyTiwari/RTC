@@ -52,23 +52,28 @@ class ConnectionManager:
             self.active_connections[meeting_id] = {}
             self.participant_details[meeting_id] = {}
 
+        # Add the new participant to the state *before* sending any messages.
+        self.active_connections[meeting_id][participant_id] = websocket
+        self.participant_details[meeting_id][participant_id] = {"username": username, "roll_number": roll_number}
+
+        # Send the 'connected' message to the new client.
+        # The list of participants now correctly includes the new client.
         await websocket.send_json({
             "type": "connected",
             "participant_id": participant_id,
             "participants": self.participant_details[meeting_id]
         })
 
-        self.active_connections[meeting_id][participant_id] = websocket
-        self.participant_details[meeting_id][participant_id] = {"username": username, "roll_number": roll_number}
-
+        # Broadcast a system message for chat to everyone else.
         system_join_message = {
             "type": "chat-message",
             "username": "System",
             "message": f"{username} has joined the meeting.",
             "is_system_message": True,
         }
-        await self.broadcast(meeting_id, system_join_message)
+        await self.broadcast(meeting_id, system_join_message, sender_id=participant_id)
 
+        # Broadcast a WebRTC signal to everyone else so they can initiate a connection.
         webrtc_join_message = {
             "type": "user-joined",
             "participant_id": participant_id,
@@ -197,26 +202,29 @@ async def websocket_endpoint(websocket: WebSocket, meeting_id: str, username: st
                     "message": data.get("message", ""),
                     "is_system_message": False
                 }
-                await manager.broadcast(meeting_id, message_payload)
-            else: # WebRTC signaling
+                await manager.broadcast(meeting_id, message_payload, sender_id=sender_id)
+            elif data_type in ['offer', 'answer', 'ice-candidate']:
+                # Forward signaling message to the target peer instead of broadcasting
                 target_id = data.get("to")
-                data["from_id"] = sender_id
-                
                 if target_id:
+                    data["from_id"] = sender_id
                     await manager.send_to_peer(meeting_id, target_id, data)
+                else:
+                    print(f"Warning: Received '{data_type}' message without a 'to' field.")
+
 
     except WebSocketDisconnect:
         sender_username = manager.participant_details.get(meeting_id, {}).get(sender_id, {}).get('username', 'Someone')
         manager.disconnect(websocket, meeting_id)
-        
         if sender_id:
             # System message for chat
-            await manager.broadcast(meeting_id, {
+            leave_message = {
                 "type": "chat-message",
                 "username": "System",
                 "message": f"{sender_username} has left the meeting.",
-                "is_system_message": True,
-            })
+                "is_system_message": True
+            }
+            await manager.broadcast(meeting_id, leave_message)
             # WebRTC cleanup message
             await manager.broadcast(meeting_id, {
                 "type": "user-left",
@@ -225,4 +233,3 @@ async def websocket_endpoint(websocket: WebSocket, meeting_id: str, username: st
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
-

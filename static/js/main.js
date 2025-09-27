@@ -6,8 +6,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const videoGrid = document.getElementById('video-grid');
     const localVideo = document.getElementById('local-video');
     const toast = document.getElementById('toast');
+    
+    // Side Panel Elements
     const participantsPanel = document.getElementById('participants-panel');
     const participantsList = document.getElementById('participants-list');
+    const chatPanel = document.getElementById('chat-panel');
+    const chatMessages = document.getElementById('chat-messages');
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+
 
     // --- State Management ---
     let localStream;
@@ -35,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateGridLayout();
         } catch (error) {
             console.error("Initialization failed:", error);
-            alert("Could not start video. Please check permissions and try again.");
+            document.getElementById('media-error-overlay').classList.remove('hidden');
         }
     };
 
@@ -62,25 +69,50 @@ document.addEventListener('DOMContentLoaded', () => {
         const { type, from_id, ...payload } = message;
 
         switch (type) {
-            case 'user-joined':
-                console.log('User joined:', payload.participant_id, payload);
+            case 'connected':
+                ws.participantId = payload.participant_id;
+                console.log(`Connected to meeting with ID: ${ws.participantId}`);
                 updateParticipantsList(payload.participants);
                 break;
+
+            case 'user-joined':
+                const { participant_id, username, roll_number } = payload;
+                if (participant_id === ws.participantId) return;
+
+                console.log(`User joined: ${username} (${participant_id})`);
+                addParticipantToListUI(username, roll_number, participant_id, false);
+                remoteParticipants[participant_id] = { username, roll_number };
+                
+                console.log(`Creating offer for new participant: ${username}`);
+                createOffer(participant_id);
+                break;
+
             case 'offer':
+                console.log(`Received offer from ${from_id}`);
                 await handleOffer(payload.offer, from_id);
                 break;
+
             case 'answer':
+                console.log(`Received answer from ${from_id}`);
                 await handleAnswer(payload.answer, from_id);
                 break;
+
             case 'ice-candidate':
                 await handleIceCandidate(payload.candidate, from_id);
                 break;
+
             case 'user-left':
                 console.log('User left:', payload.participant_id);
                 handleUserLeft(payload.participant_id);
                 break;
+            
+            case 'chat-message':
+                appendChatMessage(payload.username, payload.message, payload.is_system_message);
+                break;
+
             default:
-                console.warn("Unknown message type:", type);
+                console.warn("Received unknown message type:", type);
+                break;
         }
     };
     
@@ -174,7 +206,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const leftParticipant = remoteParticipants[participantId];
         if(leftParticipant){
-            showToast(`${leftParticipant.username} has left the meeting.`);
             const participantElement = document.getElementById(`participant-${leftParticipant.roll_number}`);
             if (participantElement) {
                 participantElement.remove();
@@ -185,15 +216,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- UI & Media Controls ---
     const setupUIEventListeners = () => {
-        document.getElementById('mic-btn').addEventListener('click', toggleMic);
-        document.getElementById('cam-btn').addEventListener('click', toggleCam);
-        document.getElementById('screen-btn').addEventListener('click', toggleScreenShare);
-        document.getElementById('leave-btn').addEventListener('click', leaveMeeting);
-        document.getElementById('copy-link-btn').addEventListener('click', copyMeetingLink);
-        document.getElementById('qr-btn').addEventListener('click', toggleQrModal);
-        document.getElementById('close-qr-modal-btn').addEventListener('click', toggleQrModal);
-        document.getElementById('participants-btn').addEventListener('click', toggleParticipantsPanel);
-        document.getElementById('close-participants-btn').addEventListener('click', toggleParticipantsPanel);
+        const ids = [
+            ['mic-btn', toggleMic],
+            ['cam-btn', toggleCam],
+            ['screen-btn', toggleScreenShare],
+            ['leave-btn', leaveMeeting],
+            ['copy-link-btn', copyMeetingLink],
+            ['qr-btn', toggleQrModal],
+            ['close-qr-modal-btn', toggleQrModal],
+            ['participants-toggle-btn', toggleParticipantsPanel],
+            ['chat-toggle-btn', toggleChatPanel],
+        ];
+        ids.forEach(([id, fn]) => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('click', fn);
+        });
+
+        if (chatForm) {
+            chatForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                sendChatMessage();
+            });
+        }
     };
 
     const toggleMic = () => {
@@ -219,34 +263,37 @@ document.addEventListener('DOMContentLoaded', () => {
             stopScreenShare();
         } else {
             try {
-                const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
                 const screenTrack = screenStream.getVideoTracks()[0];
                 
-                replaceTrack(screenTrack);
+                replaceTrack(screenTrack, localStream.getVideoTracks()[0]);
                 localVideo.srcObject = new MediaStream([screenTrack]); // Show screen locally
                 isScreenSharing = true;
-                document.getElementById('screen-btn').classList.add('sharing');
+                document.getElementById('screen-btn').classList.add('bg-blue-600');
+                showToast("You are sharing your screen.");
 
                 screenTrack.onended = () => stopScreenShare();
             } catch (err) {
                 console.error("Screen share error:", err);
                 isScreenSharing = false;
-                 document.getElementById('screen-btn').classList.remove('sharing');
+                document.getElementById('screen-btn').classList.remove('bg-blue-600');
             }
         }
     };
     
     const stopScreenShare = () => {
         const cameraTrack = localStream.getVideoTracks()[0];
-        replaceTrack(cameraTrack);
+        const currentTrack = localVideo.srcObject.getVideoTracks()[0];
+        replaceTrack(cameraTrack, currentTrack);
         localVideo.srcObject = localStream;
         isScreenSharing = false;
-        document.getElementById('screen-btn').classList.remove('sharing');
+        document.getElementById('screen-btn').classList.remove('bg-blue-600');
+        showToast("Screen sharing stopped.");
     }
 
-    const replaceTrack = (newTrack) => {
+    const replaceTrack = (newTrack, oldTrack) => {
         for (const pc of Object.values(peerConnections)) {
-            const sender = pc.getSenders().find(s => s.track && s.track.kind === newTrack.kind);
+            const sender = pc.getSenders().find(s => s.track === oldTrack);
             if (sender) {
                 sender.replaceTrack(newTrack);
             }
@@ -275,8 +322,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const modal = document.getElementById('qr-modal');
         if (modal.classList.contains('hidden')) {
             const qrContainer = document.getElementById('qr-code-container');
-            qrContainer.innerHTML = ''; // Clear previous QR code
-            QRCode.toCanvas(qrContainer, MEETING_LINK, { width: 220, errorCorrectionLevel: 'H' }, (err) => {
+            qrContainer.innerHTML = '';
+            const canvas = document.createElement('canvas');
+            qrContainer.appendChild(canvas);
+            QRCode.toCanvas(canvas, MEETING_LINK, { width: 220, errorCorrectionLevel: 'H' }, (err) => {
                 if (err) console.error(err);
             });
             document.getElementById('qr-link-text').innerText = MEETING_LINK;
@@ -285,7 +334,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     const toggleParticipantsPanel = () => {
-        participantsPanel.classList.toggle('hidden');
+        participantsPanel.classList.remove('hidden');
+        chatPanel.classList.add('hidden');
+    };
+    
+    const toggleChatPanel = () => {
+        chatPanel.classList.remove('hidden');
+        participantsPanel.classList.add('hidden');
     };
 
     const showToast = (message, isError = false) => {
@@ -330,30 +385,30 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const updateGridLayout = () => {
-        const count = document.querySelectorAll('.video-container').length;
-        videoGrid.className = `flex-1 p-4 grid gap-4 layout-videos-${count}`;
+        const count = document.querySelectorAll('#video-grid .video-container').length;
+        videoGrid.className = `flex-1 p-4 grid gap-4 layout-videos-${Math.max(1, count)}`;
     };
 
     const updateParticipantsList = (participants) => {
-        const newRemoteParticipants = {};
         participantsList.innerHTML = ''; 
-
         Object.entries(participants).forEach(([id, p]) => {
-            const isYou = p.roll_number === MY_ROLL_NUMBER && p.username === MY_USERNAME;
+            const isYou = id === ws.participantId;
             addParticipantToListUI(p.username, p.roll_number, id, isYou);
 
             if (!isYou) {
-                newRemoteParticipants[id] = p;
+                remoteParticipants[id] = p;
                 if (!peerConnections[id]) {
                     console.log(`New participant detected: ${p.username}. Creating offer.`);
                     createOffer(id);
                 }
             }
         });
-        remoteParticipants = newRemoteParticipants;
     };
 
     const addParticipantToListUI = (username, roll_number, participantId, isYou) => {
+        const existingEl = document.getElementById(`participant-${roll_number}`);
+        if(existingEl) return;
+
         const participantEl = document.createElement('div');
         participantEl.id = `participant-${roll_number}`;
         participantEl.className = 'flex items-center space-x-3 p-2 rounded-md';
@@ -369,7 +424,49 @@ document.addEventListener('DOMContentLoaded', () => {
         participantsList.appendChild(participantEl);
     };
 
+    const sendChatMessage = () => {
+        const message = chatInput.value.trim();
+        if (message && ws.readyState === WebSocket.OPEN) {
+            sendMessage({
+                type: 'chat-message',
+                message: message,
+            });
+            appendChatMessage(MY_USERNAME, message, false, true);
+            chatInput.value = '';
+        }
+    };
+
+    const appendChatMessage = (username, message, isSystemMessage, isMe = false) => {
+        const messageEl = document.createElement('div');
+        let wrapperClass = 'flex justify-start';
+        let messageClass = 'bg-gray-200 dark:bg-gray-700';
+
+        if (isSystemMessage) {
+            wrapperClass = 'flex justify-center';
+            messageEl.innerHTML = `<span class="text-sm text-gray-500 italic">${message}</span>`;
+        } else {
+            if (isMe) {
+                wrapperClass = 'flex justify-end';
+                messageClass = 'bg-indigo-500 text-white';
+                username = 'You';
+            }
+            messageEl.innerHTML = `
+                <div class="font-bold text-sm">${username}</div>
+                <div class="break-words">${message}</div>
+            `;
+        }
+        
+        messageEl.className = `p-2 rounded-lg max-w-xs text-sm ${messageClass}`;
+        
+        const wrapper = document.createElement('div');
+        wrapper.className = wrapperClass;
+        wrapper.appendChild(messageEl);
+
+        chatMessages.appendChild(wrapper);
+        chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to bottom
+    };
+
+
     // --- Start the application ---
     init();
 });
-
